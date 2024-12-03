@@ -1,4 +1,3 @@
-import { Link } from "expo-router";
 import React, { useState, useEffect } from "react";
 import { Image, FlatList, StatusBar, StyleSheet, Platform, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
@@ -43,41 +42,49 @@ const Item = ({ character, onPress, backgroundColor, textColor }: ItemProps) => 
   </TouchableOpacity>
 );
 
-// const dataCharecters = getCharactersRickAndMorty();
-
-async function getCharactersRickAndMorty() {
-  let characters = await rickMortyApi.getCharacters();
-  const countPages = characters?.data?.info?.pages;
-  const dataCharecters = [];
-
-  if (characters?.status == 200 && countPages) {
-    for (let i = 1; i <= countPages; i++) {
-      characters = await rickMortyApi.getCharacters({ page: i });
-      const countCharectersOnPage = characters?.data?.results?.length;
-
-      if (countCharectersOnPage) {
-        for (let j = 0; j < countCharectersOnPage; j++) {
-          dataCharecters.push(characters.data.results[j]);
-        }
-      }
-    }
+async function getCharactersPage(page: number) {
+  const response = await rickMortyApi.getCharacters({ page });
+  if (response?.status === 200 && response?.data?.results) {
+    return response.data.results;
   }
-
-  console.log(dataCharecters[0]);
-  return dataCharecters;
+  return [];
 }
 
 export default function HomeScreen() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
-    const loadCharacters = async () => {
-      const data = await getCharactersRickAndMorty(); // Вызываем асинхронную функцию
-      setCharacters(data); // Сохраняем загруженные данные в состояние
+    const loadInitialCharacters = async () => {
+      const initialData = await getCharactersPage(page);
+      setCharacters(initialData);
+      setLoading(false);
+      if (initialData.length < 20) {
+        setHasMore(false);
+      }
     };
-    loadCharacters(); // Запускаем загрузку данных
+
+    loadInitialCharacters();
   }, []);
+
+  const loadMoreCharacters = async () => {
+    if (loading || !hasMore) return;
+
+    setLoading(true);
+    const nextPage = page + 1;
+    const newCharacters = await getCharactersPage(nextPage);
+
+    if (newCharacters.length > 0) {
+      setCharacters((prevCharacters) => [...prevCharacters, ...newCharacters]);
+      setPage(nextPage);
+    } else {
+      setHasMore(false);
+    }
+    setLoading(false);
+  };
 
   const renderItem = ({ item }: { item: Character }) => {
     const backgroundColor = item.id === selectedId ? "#6e3b6e" : "#f9c2ff";
@@ -103,7 +110,14 @@ export default function HomeScreen() {
           <ThemedView style={styles.titleContainer}>
             <ThemedText type="title">Rick and Morty Characters</ThemedText>
           </ThemedView>
-          <FlatList data={characters} renderItem={renderItem} keyExtractor={(item) => item.id.toString()} />
+          <FlatList
+            data={characters}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            onEndReached={loadMoreCharacters}
+            onEndReachedThreshold={0.1}
+            ListFooterComponent={loading ? <Text style={styles.loadingText}>Loading...</Text> : null}
+          />
         </ParallaxScrollView>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -144,5 +158,9 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
+  },
+  loadingText: {
+    textAlign: "center",
+    padding: 10,
   },
 });
