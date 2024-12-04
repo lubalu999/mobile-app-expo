@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Image, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { ActivityIndicator, FlatList, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import * as rickMortyApi from "rickmortyapi";
 import { ThemedText } from "@/components/ThemedText";
@@ -25,12 +25,14 @@ type Character = {
   url: string;
   created: string;
 };
+
 type ItemProps = {
   character: Character;
   onPress: () => void;
   backgroundColor: string;
   textColor: string;
 };
+
 const Item = ({ character, onPress, backgroundColor, textColor }: ItemProps) => (
   <TouchableOpacity onPress={onPress} style={[styles.item, { backgroundColor }]}>
     <Image source={{ uri: character.image }} style={styles.image} />
@@ -56,11 +58,14 @@ async function getCharactersRickAndMorty() {
 export default function HomeScreen() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadCharacters = async () => {
+      setLoading(true);
       const data = await getCharactersRickAndMorty();
       setCharacters(data);
+      setLoading(false);
     };
     loadCharacters();
   }, []);
@@ -77,6 +82,15 @@ export default function HomeScreen() {
       />
     );
   };
+
+  if (loading) {
+    return (
+      <View style={styles.spinnerContainer}>
+        <ActivityIndicator size="large" color="#00ff00" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -86,11 +100,9 @@ export default function HomeScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item.id.toString()}
           ListHeaderComponent={
-            <>
-              <ThemedView style={styles.titleContainer}>
-                <ThemedText type="title">Rick and Morty Characters</ThemedText>
-              </ThemedView>
-            </>
+            <ThemedView style={styles.titleContainer}>
+              <ThemedText type="title">Rick and Morty Characters</ThemedText>
+            </ThemedView>
           }
         />
       </SafeAreaView>
@@ -99,6 +111,11 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  spinnerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   titleContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -125,7 +142,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     marginVertical: 8,
-    marginHorizontal: 56,
+    marginHorizontal: 30,
     borderRadius: 8,
   },
   title: {
@@ -136,9 +153,5 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-  },
-  loadingText: {
-    textAlign: "center",
-    padding: 10,
   },
 });
