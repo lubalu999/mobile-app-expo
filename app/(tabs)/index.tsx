@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { ActivityIndicator, FlatList, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  RefreshControl,
+} from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import * as rickMortyApi from "rickmortyapi";
 import { ThemedText } from "@/components/ThemedText";
@@ -59,16 +69,28 @@ export default function HomeScreen() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadCharacters = async () => {
+    const data = await getCharactersRickAndMorty();
+    setCharacters(data);
+  };
 
   useEffect(() => {
-    const loadCharacters = async () => {
+    const initializeCharacters = async () => {
       setLoading(true);
-      const data = await getCharactersRickAndMorty();
-      setCharacters(data);
+      await loadCharacters();
       setLoading(false);
     };
-    loadCharacters();
+    initializeCharacters();
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadCharacters();
+    setSelectedId(null);
+    setRefreshing(false);
+  };
 
   const renderItem = ({ item }: { item: Character }) => {
     const backgroundColor = item.id === selectedId ? "#6e3b6e" : "#f9c2ff";
@@ -99,6 +121,7 @@ export default function HomeScreen() {
           data={characters}
           renderItem={renderItem}
           keyExtractor={(item) => item.id.toString()}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListHeaderComponent={
             <ThemedView style={styles.titleContainer}>
               <ThemedText type="title">Rick and Morty Characters</ThemedText>
@@ -119,17 +142,14 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#transparent",
+    backgroundColor: "transparent",
     marginVertical: 20,
     marginHorizontal: 20,
-    resizeMode: "center",
     gap: 8,
   },
   logo: {
     height: "100%",
     width: "100%",
-    bottom: 0,
-    left: 0,
     position: "absolute",
     resizeMode: "center",
   },
